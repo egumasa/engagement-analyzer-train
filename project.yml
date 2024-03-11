@@ -1,0 +1,516 @@
+title: "Span Finder"
+description: "The SpanFinder is a new experimental component that identifies span boundaries
+by tagging potential start and end tokens. It's an ML approach to suggest
+candidate spans with higher precision.
+
+This project shows how to use the `SpanFinder` together with a `SpanCategorizer`."
+# Variables can be referenced across the project.yml using ${vars.var_name}
+vars:
+  config: "lg" # config_tok2vec, config_trf
+  custom_config: "suggester_test" # config_tok2vec, config_trf
+  dataset: "engagement_spl" # engagement, engagement_spl, engagement_hie_spl
+  suggester: "subtree" # ngram, span_finder
+  lang: "en"
+  asset_dir: "EDT_three_20230124_oversampled"
+  5fold_dir: "EDT_three_20230124_oversampled"
+  test_set_dir: "EDT_three_20230124_oversampled" #20230110_test, reviewed
+  train: "train"
+  dev: "dev"
+  test: "test"
+  spans_key: "sc"
+
+  gpu_id: -1
+  eval_split: 0.25
+  
+  spancat_model: "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}/model-best"
+  custom_spancat_model: "training/spancat/${vars.dataset}/${vars.custom_config}_${vars.suggester}/model-best"
+  spancat_model_last: "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}/model-last"
+  custom_spancat_model_last: "training/spancat/${vars.dataset}/${vars.custom_config}_${vars.suggester}/model-last"
+  package_name: "${vars.dataset}_${vars.config}"
+  custom_package_name: "${vars.dataset}_${vars.custom_config}"
+  package_version: "0.0.1" 
+
+#0.1.1 = training dataset is very small 600 sentence
+
+# These are the directories that the project needs. The project CLI will make
+# sure that they always exist.
+directories: ["assets", "training", "configs", "scripts", "data", "metrics"]
+
+# Assets that should be downloaded or available in the directory. We're shipping
+# them with the project, so they won't have to be downloaded. But the
+# 'project assets' command still lets you verify that all required files are available.
+assets:
+  - dest: "assets/healthsea_ner.jsonl"
+    description: "Annotations from the Healthsea dataset"
+    url: https://raw.githubusercontent.com/explosion/healthsea/main/project/assets/ner/annotation.jsonl
+
+  - dest: "assets/toxic_spans_annotations.csv"
+    description: "Annotations from the ToxicSpans dataset"
+    url: https://raw.githubusercontent.com/ipavlopoulos/toxic_spans/master/data/annotations.csv
+
+  - dest: "assets/toxic_spans.csv"
+    description: "Spans from the ToxicSpans dataset"
+    url: https://raw.githubusercontent.com/ipavlopoulos/toxic_spans/master/data/spans.csv
+
+  - dest: "assets/toxic_spans_comments.csv"
+    description: "Comments from the ToxicSpans dataset"
+    url: https://raw.githubusercontent.com/ipavlopoulos/toxic_spans/master/data/comments.csv
+
+  - dest: "assets/genia_train.iob"
+    description: "Training annotations from the Genia dataset"
+    url: "https://raw.githubusercontent.com/thecharm/boundary-aware-nested-ner/master/Our_boundary-aware_model/data/genia/genia.train.iob2"
+
+  - dest: "assets/genia_dev.iob"
+    description: "Dev annotations from the Genia dataset"
+    url: "https://raw.githubusercontent.com/thecharm/boundary-aware-nested-ner/master/Our_boundary-aware_model/data/genia/genia.dev.iob2"
+
+# Workflows are sequences of commands (see below) executed in order. You can
+# run them via "spacy project run [workflow]". If a commands's inputs/outputs
+# haven't changed, it won't be re-run.
+workflows:
+  convert:
+    - preprocess_engagement
+    - preprocess_engagementv2
+  spancat:
+    - train_spancat
+    - evaluate_spancat
+    - test_spancat
+    - package
+  custom_spancat:
+    - train_custom_spancat
+    - evaluate_custom_spancat
+    - custom_package
+  calc_intercoder:
+    - preprocess_engagement_intercoder
+    - evaluate_intercoder
+  suggester_test:
+    - train_custom_spancat
+    - test_suggester
+  test:
+    - preprocess_engagement_test
+    - evaluate_on_test
+  5fold:
+    - preprocess_engagementv2_kfold
+    - train_kfold
+    - evaluate_kfold
+
+# Project commands, specified in a style similar to CI config files (e.g. Azure
+# pipelines). The name is the command name that lets you trigger the command
+# via "spacy project run [command] [path]". The help message is optional and
+# shown when executing "spacy project run [optional command] [path] --help".
+commands:
+  - name: "install"
+    help: "Install requirements"
+    script:
+      - "pip install -r requirements.txt"
+
+  - name: "preprocess" #make sure you changed ${vars.dataset}
+    help: "Format Engagement annotations into .spaCy training format using the convert.py in script"
+    script:
+      - "python scripts/preprocessing/convert.py assets/${vars.asset_dir}/train.iob  -o data/${vars.dataset}_${vars.train}.spacy"
+      - "python scripts/preprocessing/convert.py assets/${vars.asset_dir}/dev.iob -o data/${vars.dataset}_${vars.dev}.spacy"
+    deps:
+      - "assets/${vars.asset_dir}/train.iob"
+      - "assets/${vars.asset_dir}/dev.iob"
+    outputs:
+      - "data/${vars.dataset}_${vars.train}.spacy"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+
+
+  - name: "preprocess_engagement" #make sure you changed ${vars.dataset}
+    help: "Format Engagement annotations into .spaCy training format"
+    script:
+      - "python scripts/preprocessing/preprocess_genia.py Test_set/${vars.test_set_dir}/ALM/train.iob  Test_set/${vars.test_set_dir}/ALM.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_genia.py Test_set/${vars.test_set_dir}/RW/train.iob Test_set/${vars.test_set_dir}/RW.spacy ${vars.spans_key}"
+    deps:
+      - "Test_set/${vars.test_set_dir}/ALM/train.iob"
+      - "Test_set/${vars.test_set_dir}/RW/train.iob"
+    outputs:
+      - "Test_set/${vars.test_set_dir}/ALM.spacy"
+      - "Test_set/${vars.test_set_dir}/RW.spacy"
+
+  - name: "preprocess_engagementv2" #make sure you changed ${vars.dataset}
+    help: "Format Engagement annotations (version 2) into .spaCy training format"
+    script:
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.asset_dir}/train.iob  data/${vars.dataset}_${vars.train}.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.asset_dir}/dev.iob data/${vars.dataset}_${vars.dev}.spacy ${vars.spans_key}"
+    deps:
+      - "assets/${vars.asset_dir}/train.iob"
+      - "assets/${vars.asset_dir}/dev.iob"
+    outputs:
+      - "data/${vars.dataset}_${vars.train}.spacy"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+
+  - name: "preprocess_engagementv3" #make sure you changed ${vars.dataset}
+    help: "Format Engagement annotations (version 2) into .spaCy training format"
+    script:
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.asset_dir}/train.iob  data/${vars.dataset}_${vars.train}.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.asset_dir}/dev.iob data/${vars.dataset}_${vars.dev}.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.asset_dir}/test.iob data/${vars.dataset}_${vars.test}.spacy ${vars.spans_key}"
+    deps:
+      - "assets/${vars.asset_dir}/train.iob"
+      - "assets/${vars.asset_dir}/dev.iob"
+      - "assets/${vars.asset_dir}/test.iob"
+    outputs:
+      - "data/${vars.dataset}_${vars.train}.spacy"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+      - "data/${vars.dataset}_${vars.test}.spacy"
+
+
+
+  - name: "preprocess_engagementv2_kfold" #make sure you changed ${vars.dataset}
+    help: "Format Engagement annotations (version 2) into .spaCy training format"
+    script:
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/train1.iob  data/${vars.dataset}_${vars.train}1.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/dev1.iob data/${vars.dataset}_${vars.dev}1.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/train2.iob  data/${vars.dataset}_${vars.train}2.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/dev2.iob data/${vars.dataset}_${vars.dev}2.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/train3.iob  data/${vars.dataset}_${vars.train}3.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/dev3.iob data/${vars.dataset}_${vars.dev}3.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/train4.iob  data/${vars.dataset}_${vars.train}4.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/dev4.iob data/${vars.dataset}_${vars.dev}4.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/train5.iob  data/${vars.dataset}_${vars.train}5.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py assets/${vars.5fold_dir}/dev5.iob data/${vars.dataset}_${vars.dev}5.spacy ${vars.spans_key}"
+    deps:
+      - "assets/${vars.5fold_dir}/train1.iob"
+      - "assets/${vars.5fold_dir}/dev1.iob"
+      - "assets/${vars.5fold_dir}/train2.iob"
+      - "assets/${vars.5fold_dir}/dev2.iob"
+      - "assets/${vars.5fold_dir}/train3.iob"
+      - "assets/${vars.5fold_dir}/dev3.iob"
+      - "assets/${vars.5fold_dir}/train4.iob"
+      - "assets/${vars.5fold_dir}/dev4.iob"
+      - "assets/${vars.5fold_dir}/train5.iob"
+      - "assets/${vars.5fold_dir}/dev5.iob"
+    outputs:
+      - "data/${vars.dataset}_${vars.train}1.spacy"
+      - "data/${vars.dataset}_${vars.dev}1.spacy"
+      - "data/${vars.dataset}_${vars.train}2.spacy"
+      - "data/${vars.dataset}_${vars.dev}2.spacy"
+      - "data/${vars.dataset}_${vars.train}3.spacy"
+      - "data/${vars.dataset}_${vars.dev}3.spacy"
+      - "data/${vars.dataset}_${vars.train}4.spacy"
+      - "data/${vars.dataset}_${vars.dev}4.spacy"
+      - "data/${vars.dataset}_${vars.train}5.spacy"
+      - "data/${vars.dataset}_${vars.dev}5.spacy"
+
+  - name: "preprocess_engagement_intercoder" #make sure you changed ${vars.dataset}
+    help: "Format Engagement annotations (version 2) into .spaCy training format"
+    script:
+      - "python scripts/preprocessing/preprocess_engagement_v2.py Test_set/${vars.test_set_dir}/ALM/train.iob  Test_set/${vars.test_set_dir}/ALM.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py Test_set/${vars.test_set_dir}/RW/train.iob Test_set/${vars.test_set_dir}/RW.spacy ${vars.spans_key}"
+      - "python scripts/preprocessing/preprocess_engagement_v2.py Test_set/${vars.test_set_dir}/RW/train.iob Test_set/${vars.test_set_dir}/RW.spacy ${vars.spans_key}"
+    deps:
+      - "Test_set/${vars.test_set_dir}/ALM/train.iob"
+      - "Test_set/${vars.test_set_dir}/RW/train.iob"
+    outputs:
+      - "Test_set/${vars.test_set_dir}/ALM.spacy"
+      - "Test_set/${vars.test_set_dir}/RW.spacy"
+
+  - name: "preprocess_engagement_test" #make sure you changed ${vars.dataset}
+    help: "Format Engagement annotations (version 2) into .spaCy training format"
+    script:
+      - "python scripts/preprocessing/preprocess_engagement_v2.py Test_set/${vars.test_set_dir}/train.iob Test_set/${vars.test_set_dir}/test.spacy ${vars.spans_key}"
+    deps:
+      - "Test_set/${vars.test_set_dir}/train.iob"
+    outputs:
+      - "Test_set/${vars.test_set_dir}/test.spacy"
+
+  - name: "train_spancat"
+    help: "Train a spancat model on the `dataset` defined in `project.yml`"
+    script:
+      - "python -m spacy train configs/${vars.suggester}/${vars.config}.cfg --output training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}/ --paths.train data/${vars.dataset}_${vars.train}.spacy --paths.dev data/${vars.dataset}_${vars.dev}.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} -c ./scripts/custom_functions.py"
+    deps:
+      - "configs/${vars.suggester}/${vars.config}.cfg"
+      - "data/${vars.dataset}_${vars.train}.spacy"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+    outputs:
+      - "${vars.spancat_model}"
+
+  - name: "train-search"
+    help: "Run customized training runs for hyperparameter search using [Weights & Biases Sweeps](https://docs.wandb.ai/guides/sweeps)"
+    script:
+      - "python scripts/sweeps/sweeps_using_code.py configs/${vars.suggester}/${vars.config}.cfg training/ -c ./scripts/custom_functions.py -y scripts/sweeps/sweep1.yml"
+    deps:
+      - "data/engagement_spl_train.spacy"
+      - "data/engagement_spl_dev.spacy"
+      - "configs/"
+
+  - name: "train_custom_spancat"
+    help: "Train a spancat model on the `dataset` defined in `project.yml`"
+    script:
+      - "python -m spacy train configs/${vars.suggester}/${vars.custom_config}.cfg --output training/spancat/${vars.dataset}/${vars.custom_config}_${vars.suggester}/ --paths.train data/${vars.dataset}_${vars.train}.spacy --paths.dev data/${vars.dataset}_${vars.dev}.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} -c ./scripts/custom_functions.py"
+    deps:
+      - "configs/${vars.suggester}/${vars.custom_config}.cfg"
+      - "data/${vars.dataset}_${vars.train}.spacy"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+    outputs:
+      - "${vars.custom_spancat_model}"
+
+  - name: "train_eng_spl"
+    help: "Train a spancat model on the `dataset` defined in `project.yml`"
+    script:
+      - "python -m spacy train configs/${vars.suggester}/${vars.config}.cfg --output training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}/ --paths.train data/${vars.dataset}_${vars.train}.spacy --paths.dev data/${vars.dataset}_${vars.dev}.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key}"
+    deps:
+      - "configs/${vars.suggester}/${vars.config}.cfg"
+      - "data/${vars.dataset}_${vars.train}.spacy"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+    outputs:
+      - "${vars.spancat_model}"
+
+  - name: "train_kfold"
+    help: "Train a spancat model on the `dataset` defined in `project.yml`"
+    script:
+      - "python -m spacy train configs/${vars.suggester}/${vars.config}.cfg --output training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}1/ --paths.train data/${vars.dataset}_${vars.train}1.spacy --paths.dev data/${vars.dataset}_${vars.dev}1.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} -c ./scripts/custom_functions.py"
+      - "python -m spacy train configs/${vars.suggester}/${vars.config}.cfg --output training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}2/ --paths.train data/${vars.dataset}_${vars.train}2.spacy --paths.dev data/${vars.dataset}_${vars.dev}2.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} -c ./scripts/custom_functions.py"
+      - "python -m spacy train configs/${vars.suggester}/${vars.config}.cfg --output training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}3/ --paths.train data/${vars.dataset}_${vars.train}3.spacy --paths.dev data/${vars.dataset}_${vars.dev}3.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} -c ./scripts/custom_functions.py"
+      - "python -m spacy train configs/${vars.suggester}/${vars.config}.cfg --output training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}4/ --paths.train data/${vars.dataset}_${vars.train}4.spacy --paths.dev data/${vars.dataset}_${vars.dev}4.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} -c ./scripts/custom_functions.py"
+      - "python -m spacy train configs/${vars.suggester}/${vars.config}.cfg --output training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}5/ --paths.train data/${vars.dataset}_${vars.train}5.spacy --paths.dev data/${vars.dataset}_${vars.dev}5.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} -c ./scripts/custom_functions.py"
+    deps:
+      - "configs/${vars.suggester}/${vars.config}.cfg"
+      - "data/${vars.dataset}_${vars.train}1.spacy"
+      - "data/${vars.dataset}_${vars.dev}1.spacy"
+    outputs:
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}1/model-best"
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}2/model-best"
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}3/model-best"
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}4/model-best"
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}5/model-best"
+
+
+  - name: "evaluate_spancat"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train"
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev"
+      # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train -c ./scripts/custom_functions.py"
+      # - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}_train.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train -c ./scripts/custom_functions.py"
+      # - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
+      # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy -c ./scripts/custom_functions.py"
+
+      - "python scripts/eval/evaluate.py ${vars.spancat_model} Test_set/${vars.test_set_dir}/test.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
+      # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy -c ./scripts/custom_functions.py"
+    deps:
+      - "${vars.spancat_model}"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+    outputs:
+      - metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json
+
+  - name: "test_spancat"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/test"
+      - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.test}.spacy --output metrics/Test_spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
+      # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.test}.spacy -c ./scripts/custom_functions.py"
+    deps:
+      - "${vars.spancat_model}"
+      - "data/${vars.dataset}_${vars.test}.spacy"
+    outputs:
+      - metrics/Test_spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json
+
+
+  - name: "evaluate_on_train"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train"
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev"
+      - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}_train.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy -c ./scripts/custom_functions.py"
+    deps:
+      - "${vars.spancat_model}"
+      - "data/${vars.dataset}_${vars.train}.spacy"
+    outputs:
+      - metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json
+
+  - name: "evaluate_kfold"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      # - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train"
+      - "mkdir -p displacy/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev"
+      # - "mkdir -p metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train"
+      - "mkdir -p metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev"
+      - "mkdir -p metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test"
+      #1
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}1/model-best data/${vars.dataset}_${vars.dev}1.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev1 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}1/model-best data/${vars.dataset}_${vars.dev}1.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}1/model-best data/${vars.dataset}_${vars.test}1.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test1 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}1/model-best data/${vars.dataset}_${vars.test}1.spacy -c ./scripts/custom_functions.py"
+
+      #2
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}2/model-best data/${vars.dataset}_${vars.dev}2.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev2 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}2/model-best data/${vars.dataset}_${vars.dev}2.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}2/model-best data/${vars.dataset}_${vars.test}2.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}2/model-best data/${vars.dataset}_${vars.test}2.spacy -c ./scripts/custom_functions.py"
+      #3
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}3/model-best data/${vars.dataset}_${vars.dev}3.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev3 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}3/model-best data/${vars.dataset}_${vars.dev}3.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}3/model-best data/${vars.dataset}_${vars.test}3.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test3 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}3/model-best data/${vars.dataset}_${vars.test}3.spacy -c ./scripts/custom_functions.py"
+      #4
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}4/model-best data/${vars.dataset}_${vars.dev}4.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev4 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}4/model-best data/${vars.dataset}_${vars.dev}4.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}4/model-best data/${vars.dataset}_${vars.test}4.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test4 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}4/model-best data/${vars.dataset}_${vars.test}4.spacy -c ./scripts/custom_functions.py"
+      #5
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}5/model-best data/${vars.dataset}_${vars.dev}5.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev5 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}5/model-best data/${vars.dataset}_${vars.dev}5.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}5/model-best data/${vars.dataset}_${vars.test}5.spacy --output metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test5 --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}5/model-best data/${vars.dataset}_${vars.test}5.spacy -c ./scripts/custom_functions.py"
+
+    deps:
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}1/model-best"
+      - "data/${vars.dataset}_${vars.dev}1.spacy"
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}2/model-best"
+      - "data/${vars.dataset}_${vars.dev}2.spacy"
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}3/model-best"
+      - "data/${vars.dataset}_${vars.dev}3.spacy"
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}4/model-best"
+      - "data/${vars.dataset}_${vars.dev}4.spacy"
+      - "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}5/model-best"
+      - "data/${vars.dataset}_${vars.dev}5.spacy"
+    outputs:
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev1.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test1.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev2.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test2.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev3.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test3.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev4.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test4.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/dev/dev5.json
+      - metrics/5fold_${vars.dataset}_${vars.config}_${vars.suggester}/test/test5.json
+
+  - name: "evaluate_intercoder"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.test_set_dir}/Test"
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/Test"
+      - "python scripts/eval/spancat_eval_confusion_test.py ${vars.spancat_model} Test_set/${vars.test_set_dir}/RW.spacy Test_set/${vars.test_set_dir}/ALM.spacy --output metrics/Intercoder_${vars.test_set_dir}_RW_ALM.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/Test -c ./scripts/custom_functions.py"
+    deps:
+      - "Test_set/${vars.test_set_dir}/RW.spacy"
+      - "Test_set/${vars.test_set_dir}/ALM.spacy"
+    outputs:
+      - metrics/Intercoder_${vars.test_set_dir}_RW_ALM.json
+
+  - name: "evaluate_on_anntotators_test"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/TEST_RW"
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/TEST_ALM"
+      - "python scripts/eval/evaluate.py ${vars.spancat_model} Test_set/${vars.test_set_dir}/RW.spacy --output metrics/TEST_spancat_${vars.dataset}_${vars.config}_${vars.suggester}_Test_RW.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/TEST_RW -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} Test_set/${vars.test_set_dir}/RW.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py ${vars.spancat_model} Test_set/${vars.test_set_dir}/ALM.spacy --output metrics/TEST_spancat_${vars.dataset}_${vars.config}_${vars.suggester}_Test_RW.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/TEST_ALM -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} Test_set/${vars.test_set_dir}/ALM.spacy -c ./scripts/custom_functions.py"
+    deps:
+      - "${vars.spancat_model}"
+      - "Test_set/${vars.test_set_dir}/RW.spacy"
+      - "Test_set/${vars.test_set_dir}/ALM.spacy"
+    outputs:
+      - metrics/TEST_spancat_${vars.dataset}_${vars.config}_${vars.suggester}_Test_RW.json
+      - metrics/TEST_spancat_${vars.dataset}_${vars.config}_${vars.suggester}_Test_ALM.json
+
+  - name: "evaluate_on_test"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/TEST_SET"
+      - "python scripts/eval/evaluate.py ${vars.spancat_model} Test_set/${vars.test_set_dir}/test.spacy --output metrics/TEST_spancat_${vars.dataset}_${vars.config}_${vars.suggester}_Test.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/TEST_SET -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} Test_set/${vars.test_set_dir}/test.spacy -c ./scripts/custom_functions.py"
+    deps:
+      - "${vars.spancat_model}"
+      - "Test_set/${vars.test_set_dir}/test.spacy"
+    outputs:
+      - metrics/TEST_spancat_${vars.dataset}_${vars.config}_${vars.suggester}_Test.json
+
+
+  - name: "evaluate_custom_spancat"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/train"
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/dev"
+      # - "python -m spacy evaluate ${vars.custom_spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/train/ -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py ${vars.custom_spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py -dp displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/"
+      # - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/${vars.dataset}_${vars.train}.spacy"
+      # - "python -m spacy evaluate ${vars.custom_spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/dev/ -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py ${vars.custom_spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py -dp displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/${vars.dataset}_${vars.dev}.spacy -c ./scripts/custom_functions.py"
+    deps:
+      - "${vars.custom_spancat_model}"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+    outputs:
+      - metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json
+
+  - name: "evaluate_spancat_last"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train"
+      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev"
+      - "python -m spacy evaluate ${vars.spancat_model_last} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train -c ./scripts/custom_functions.py"
+      # - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}_train.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train"
+      # - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy"
+      # - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev"
+      - "python -m spacy evaluate ${vars.spancat_model_last} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
+      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model_last} data/${vars.dataset}_${vars.dev}.spacy"
+    deps:
+      - "${vars.spancat_model_last}"
+      - "data/${vars.dataset}_${vars.dev}.spacy"
+    outputs:
+      - metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json
+
+  - name: "test_suggester"
+    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+    script:
+      - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.train}.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.dev}.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.test}.spacy -c ./scripts/custom_functions.py"
+    deps:
+      - "${vars.custom_spancat_model}"
+      - "data/engagement_test_${vars.train}.spacy"
+      - "data/engagement_test_${vars.dev}.spacy"
+      - "data/engagement_test_${vars.test}.spacy"
+    outputs:
+      - metrics/spancat_engagement_test_${vars.custom_config}_${vars.suggester}.json
+
+
+  - name: package
+    help: "Package the trained model so it can be installed"
+    script:
+      - >-
+        python -m spacy package 
+        ${vars.spancat_model} packages 
+        --name ${vars.package_name} 
+        --version ${vars.package_version}
+        --code ./scripts/custom_functions.py
+        --force
+        --build wheel
+    deps:
+      - "${vars.spancat_model}"
+    outputs_no_cache:
+      - "packages/${vars.lang}_${vars.package_name}-${vars.package_version}/dist/${vars.lang}_${vars.package_name}-${vars.package_version}.tar.gz"
+
+  - name: custom_package
+    help: "Package the trained model so it can be installed"
+    script:
+      - >-
+        python -m spacy package 
+        ${vars.custom_spancat_model} packages 
+        --name ${vars.custom_package_name} 
+        --version ${vars.package_version}
+        --code ./scripts/custom_functions.py
+        --force
+        --build wheel
+    deps:
+      - "${vars.custom_spancat_model}"
+    outputs_no_cache:
+      - "packages/${vars.lang}_${vars.custom_package_name}-${vars.package_version}/dist/${vars.lang}_${vars.custom_package_name}-${vars.package_version}.tar.gz"
+
+  - name: "reset"
+    help: "Reset the project to its original state and delete all training process"
+    script:
+      - "python scripts/reset.py training"
+      - "python scripts/reset.py metrics"
+      - "python scripts/reset.py assets"
+      - "python scripts/reset.py data"

@@ -1,0 +1,11 @@
+method: bayes
+metric:
+  goal: maximize
+  name: score
+parameters:
+  components.spancat.model.reducer.hidden_size:
+    values: [128, 256]
+  # training.optimizer.learn_rate:
+  #   distribution: uniform
+  #   max: 0.0001
+  #   min: 0.00005

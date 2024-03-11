@@ -1,0 +1,17 @@
+method: bayes
+metric:
+  goal: maximize
+  name: score
+command:
+  - /Users/masakieguchi/opt/miniforge3/envs/spancat3.4.4/bin/python
+  - scripts/sweeps/sweeps_using_config.py
+  - ./configs/subtree/RoBERTa.cfg
+  - ./training
+  - ./scripts/custom_functions.py
+parameters:
+  components.spancat.model.reducer.hidden_size:
+    values: [128, 256]
+  training.optimizer.learn_rate:
+    distribution: uniform
+    max: 0.0001
+    min: 0.00005

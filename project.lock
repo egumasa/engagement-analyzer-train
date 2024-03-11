@@ -1,0 +1,39 @@
+preprocess_engagementv3:
+  cmd: python -m weasel run preprocess_engagementv3
+  script:
+    - python scripts/preprocessing/preprocess_engagement_v2.py assets/EDT_three_20230124_oversampled/train.iob  data/engagement_spl_train.spacy
+      sc
+    - python scripts/preprocessing/preprocess_engagement_v2.py assets/EDT_three_20230124_oversampled/dev.iob
+      data/engagement_spl_dev.spacy sc
+    - python scripts/preprocessing/preprocess_engagement_v2.py assets/EDT_three_20230124_oversampled/test.iob
+      data/engagement_spl_test.spacy sc
+  deps:
+    - path: assets/EDT_three_20230124_oversampled/train.iob
+      md5: 59cf5b3cbe445de1753e2020bc5f675c
+    - path: assets/EDT_three_20230124_oversampled/dev.iob
+      md5: 32b32442e8a7d76fd176c2c6f63ae621
+    - path: assets/EDT_three_20230124_oversampled/test.iob
+      md5: 9b9a8d9e0bfbcbdf6d92ae87ee41d8f6
+  outs:
+    - path: data/engagement_spl_train.spacy
+      md5: ea33df518e13cfd6bfd6f7b331867d27
+    - path: data/engagement_spl_dev.spacy
+      md5: a752a8dafadc79ebc73695dc1b8f981a
+    - path: data/engagement_spl_test.spacy
+      md5: 046ea765506593612eb1fd82858fe332
+train_spancat:
+  cmd: python -m weasel run train_spancat
+  script:
+    - python -m spacy train configs/subtree/lg.cfg --output training/spancat/engagement_spl/lg_subtree/
+      --paths.train data/engagement_spl_train.spacy --paths.dev data/engagement_spl_dev.spacy
+      --gpu-id -1 --vars.spans_key sc -c ./scripts/custom_functions.py
+  deps:
+    - path: configs/subtree/lg.cfg
+      md5: f7d9199cc6fc823acbafbc088f6931e5
+    - path: data/engagement_spl_train.spacy
+      md5: ea33df518e13cfd6bfd6f7b331867d27
+    - path: data/engagement_spl_dev.spacy
+      md5: a752a8dafadc79ebc73695dc1b8f981a
+  outs:
+    - path: training/spancat/engagement_spl/lg_subtree/model-best
+      md5: d5d9a18538858c68fe82b56de9fea825

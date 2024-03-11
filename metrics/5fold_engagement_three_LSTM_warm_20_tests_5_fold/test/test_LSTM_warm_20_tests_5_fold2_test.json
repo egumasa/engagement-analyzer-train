@@ -1,0 +1,84 @@
+{
+  "ATTRIBUTION": {
+    "precision": 0.7557959814528593,
+    "recall": 0.6213468869123253,
+    "f1-score": 0.6820083682008368,
+    "support": 787
+  },
+  "CITATION": {
+    "precision": 1.0,
+    "recall": 0.8816793893129771,
+    "f1-score": 0.9371196754563894,
+    "support": 262
+  },
+  "COUNTER": {
+    "precision": 0.9282296650717703,
+    "recall": 0.9086651053864169,
+    "f1-score": 0.9183431952662722,
+    "support": 427
+  },
+  "DENY": {
+    "precision": 0.8851674641148325,
+    "recall": 0.8980582524271845,
+    "f1-score": 0.891566265060241,
+    "support": 412
+  },
+  "ENDOPHORIC": {
+    "precision": 0.6708074534161491,
+    "recall": 0.574468085106383,
+    "f1-score": 0.6189111747851003,
+    "support": 188
+  },
+  "ENTERTAIN": {
+    "precision": 0.6888633754305397,
+    "recall": 0.8333333333333334,
+    "f1-score": 0.754242614707731,
+    "support": 720
+  },
+  "JUSTIFYING": {
+    "precision": 0.7249466950959488,
+    "recall": 0.8785529715762274,
+    "f1-score": 0.794392523364486,
+    "support": 387
+  },
+  "MONOGLOSS": {
+    "precision": 0.7442326980942828,
+    "recall": 0.8272017837235228,
+    "f1-score": 0.7835269271383315,
+    "support": 897
+  },
+  "PROCLAIM": {
+    "precision": 0.6547619047619048,
+    "recall": 0.5045871559633027,
+    "f1-score": 0.5699481865284974,
+    "support": 327
+  },
+  "SOURCES": {
+    "precision": 0.8037578288100209,
+    "recall": 0.7142857142857143,
+    "f1-score": 0.7563850687622791,
+    "support": 539
+  },
+  "_": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1-score": 0.0,
+    "support": 630
+  },
+  "accuracy": 0.6847202295552367,
+  "macro avg": {
+    "precision": 0.7142330060225736,
+    "recall": 0.6947435161843079,
+    "f1-score": 0.7005858181154696,
+    "support": 5576
+  },
+  "weighted avg": {
+    "precision": 0.6878428344575017,
+    "recall": 0.6847202295552367,
+    "f1-score": 0.6824698599388707,
+    "support": 5576
+  },
+  "kappa": {
+    "Overall": 0.6460997499240761
+  }
+}
