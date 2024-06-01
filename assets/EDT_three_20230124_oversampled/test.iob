@@ -42244,7 +42244,7 @@ Dodge	O	I-CITATION	O	O	O
 .	O	O	O	O	O
 
 -DOCSTART- -X- O O
-Hugs	O	O	O	O	O
+Hugs	B-MONOGLOSS	O	O	O	O
 and	O	O	O	O	O
 kisses	O	O	O	O	O
 
@@ -44012,7 +44012,7 @@ below	O	B-ENDOPHORIC	O	O	O
 -DOCSTART- -X- O O
 Lack	O	O	O	O	O
 of	O	O	O	O	O
-interest	O	O	O	O	O
+interest	B-MONOGLOSS	O	O	O	O
 -	O	O	O	O	O
 receiver	O	O	O	O	O
 's	O	O	O	O	O

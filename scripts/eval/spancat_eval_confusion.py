@@ -235,7 +235,10 @@ def evaluate_spancat(model: str,
                      displacy_limit: int = 100,
                      silent: bool = True,
                      spans_key: str = "sc",
-                     return_res: bool = False):
+                     return_res: bool = False,
+                    parser = False,
+                    ner = False
+                     ):
     getter = getattr
     msg = Printer(no_print=silent, pretty=not silent)
     fix_random_seed()
@@ -333,22 +336,31 @@ def evaluate_spancat(model: str,
         ]
         docs = list(
             nlp.pipe(ex.reference.text for ex in dev_dataset[:displacy_limit]))
-        render_deps = "parser" in factory_names
-        render_ents = "ner" in factory_names
+        if parser:
+            render_deps = "parser" in factory_names
+        if ner:
+            render_ents = "ner" in factory_names
         render_spans = "spancat" in factory_names
-
-        for doc in docs:
-            cleanup_justify(doc, doc.spans['sc'])
-
-        render_parses(
-            docs,
-            displacy_path,
-            model_name=model,
-            limit=displacy_limit,
-            deps=render_deps,
-            ents=render_ents,
-            spans=render_spans,
-        )
+        if parser and ner:
+            render_parses(
+                docs,
+                displacy_path,
+                model_name=model,
+                limit=displacy_limit,
+                deps=render_deps,
+                ents=render_ents,
+                spans=render_spans,
+            )
+        else:
+            render_parses(
+                docs,
+                displacy_path,
+                model_name=model,
+                limit=displacy_limit,
+                # deps=render_deps,
+                # ents=render_ents,
+                spans=render_spans,
+            )
         msg.good(f"Generated {displacy_limit} parses as HTML", displacy_path)
 
     if output_path is not None:

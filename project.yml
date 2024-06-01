@@ -6,20 +6,19 @@ candidate spans with higher precision.
 This project shows how to use the `SpanFinder` together with a `SpanCategorizer`."
 # Variables can be referenced across the project.yml using ${vars.var_name}
 vars:
-  config: "lg" # config_tok2vec, config_trf
-  custom_config: "suggester_test" # config_tok2vec, config_trf
-  dataset: "engagement_spl" # engagement, engagement_spl, engagement_hie_spl
-  suggester: "subtree" # ngram, span_finder
-  lang: "en"
-  asset_dir: "EDT_three_20230124_oversampled"
-  5fold_dir: "EDT_three_20230124_oversampled"
+  config: "lg" # Choose from [lg, config_tok2vec, config_trf]
+  dataset: "engagement" # engagement, engagement_spl, engagement_hie_spl
+  suggester: "subtree" # Choose from subtree (default), ngram, span_finder
+  lang: "en" #language for tokenization
+  asset_dir: "EDT_three_20230124_oversampled" #dataset for single three-way split data
+  5fold_dir: "EDT_three_20230124_oversampled" #dataset for 5-fold CV
   test_set_dir: "EDT_three_20230124_oversampled" #20230110_test, reviewed
   train: "train"
   dev: "dev"
   test: "test"
   spans_key: "sc"
 
-  gpu_id: -1
+  gpu_id: 0
   eval_split: 0.25
   
   spancat_model: "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}/model-best"
