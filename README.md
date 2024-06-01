@@ -35,27 +35,25 @@ Note that you will need to have a computer with relatively high-spec. Mac comput
 #### Clone repository
 
 ```
-git clone ...
+git clone https://github.com/egumasa/engagement-analyzer-train.git
 ```
 #### Setting-up and installing dependencies
 
 ```
+cd engagement-analyzer-train #if you have not done this already
 pip install -U pip setuptools wheel
 pip install -r requirements.txt
+
 ```
 
 
-
 ### Running on Google Colab
-Alternatively, you can clone the repository into your Google Drive. Then you can run the commands from Google Colaboratory. Google Colaboratory offers you necessary Graphical Processing Units (GPUs) for training. You would probably need on the free tier of the Google Colab to run the examples.
+
+Alternatively, you can clone the repository into your Google Drive. Then you can run the commands from Google Colaboratory. Google Colaboratory offers you necessary Graphical Processing Units (GPUs) for training. You would probably need only the free tier of the Google Colab to run the examples.
 
 - First you can download the current repository. 
 - Then you can unzip the content, and upload to your Google Drive.
-- 
-
-If you are running the codes from Google Colaboratory, go to section X below.
-
-
+- If you are running the codes from Google Colaboratory, go to sections below.
 
 # Tutorials
 

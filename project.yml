@@ -22,11 +22,8 @@ vars:
   eval_split: 0.25
   
   spancat_model: "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}/model-best"
-  custom_spancat_model: "training/spancat/${vars.dataset}/${vars.custom_config}_${vars.suggester}/model-best"
   spancat_model_last: "training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}/model-last"
-  custom_spancat_model_last: "training/spancat/${vars.dataset}/${vars.custom_config}_${vars.suggester}/model-last"
   package_name: "${vars.dataset}_${vars.config}"
-  custom_package_name: "${vars.dataset}_${vars.custom_config}"
   package_version: "0.0.1" 
 
 #0.1.1 = training dataset is very small 600 sentence
@@ -75,15 +72,10 @@ workflows:
     - evaluate_spancat
     - test_spancat
     - package
-  custom_spancat:
-    - train_custom_spancat
-    - evaluate_custom_spancat
-    - custom_package
   calc_intercoder:
     - preprocess_engagement_intercoder
     - evaluate_intercoder
   suggester_test:
-    - train_custom_spancat
     - test_suggester
   test:
     - preprocess_engagement_test
@@ -235,27 +227,6 @@ commands:
       - "data/engagement_spl_dev.spacy"
       - "configs/"
 
-  - name: "train_custom_spancat"
-    help: "Train a spancat model on the `dataset` defined in `project.yml`"
-    script:
-      - "python -m spacy train configs/${vars.suggester}/${vars.custom_config}.cfg --output training/spancat/${vars.dataset}/${vars.custom_config}_${vars.suggester}/ --paths.train data/${vars.dataset}_${vars.train}.spacy --paths.dev data/${vars.dataset}_${vars.dev}.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key} -c ./scripts/custom_functions.py"
-    deps:
-      - "configs/${vars.suggester}/${vars.custom_config}.cfg"
-      - "data/${vars.dataset}_${vars.train}.spacy"
-      - "data/${vars.dataset}_${vars.dev}.spacy"
-    outputs:
-      - "${vars.custom_spancat_model}"
-
-  - name: "train_eng_spl"
-    help: "Train a spancat model on the `dataset` defined in `project.yml`"
-    script:
-      - "python -m spacy train configs/${vars.suggester}/${vars.config}.cfg --output training/spancat/${vars.dataset}/${vars.config}_${vars.suggester}/ --paths.train data/${vars.dataset}_${vars.train}.spacy --paths.dev data/${vars.dataset}_${vars.dev}.spacy --gpu-id ${vars.gpu_id} --vars.spans_key ${vars.spans_key}"
-    deps:
-      - "configs/${vars.suggester}/${vars.config}.cfg"
-      - "data/${vars.dataset}_${vars.train}.spacy"
-      - "data/${vars.dataset}_${vars.dev}.spacy"
-    outputs:
-      - "${vars.spancat_model}"
 
   - name: "train_kfold"
     help: "Train a spancat model on the `dataset` defined in `project.yml`"
@@ -490,21 +461,6 @@ commands:
     outputs_no_cache:
       - "packages/${vars.lang}_${vars.package_name}-${vars.package_version}/dist/${vars.lang}_${vars.package_name}-${vars.package_version}.tar.gz"
 
-  - name: custom_package
-    help: "Package the trained model so it can be installed"
-    script:
-      - >-
-        python -m spacy package 
-        ${vars.custom_spancat_model} packages 
-        --name ${vars.custom_package_name} 
-        --version ${vars.package_version}
-        --code ./scripts/custom_functions.py
-        --force
-        --build wheel
-    deps:
-      - "${vars.custom_spancat_model}"
-    outputs_no_cache:
-      - "packages/${vars.lang}_${vars.custom_package_name}-${vars.package_version}/dist/${vars.lang}_${vars.custom_package_name}-${vars.package_version}.tar.gz"
 
   - name: "reset"
     help: "Reset the project to its original state and delete all training process"
