@@ -75,8 +75,6 @@ workflows:
   calc_intercoder:
     - preprocess_engagement_intercoder
     - evaluate_intercoder
-  suggester_test:
-    - test_suggester
   test:
     - preprocess_engagement_test
     - evaluate_on_test
@@ -253,16 +251,16 @@ commands:
     script:
       - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train"
       - "mkdir -p displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev"
-      # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train -c ./scripts/custom_functions.py"
+      # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id}  -c ./scripts/custom_functions.py"
       # - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}_train.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/train -c ./scripts/custom_functions.py"
       # - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.train}.spacy -c ./scripts/custom_functions.py"
-      - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
-      # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
-      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy -c ./scripts/custom_functions.py"
+      - "python scripts/eval/evaluate.py ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id}  -c ./scripts/custom_functions.py"
+      # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id}  -c ./scripts/custom_functions.py"
+      # - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy -c ./scripts/custom_functions.py"
 
-      - "python scripts/eval/evaluate.py ${vars.spancat_model} Test_set/${vars.test_set_dir}/test.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
+      # - "python scripts/eval/evaluate.py ${vars.spancat_model} Test_set/${vars.test_set_dir}/test.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id}  -c ./scripts/custom_functions.py"
       # - "python -m spacy evaluate ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.config}_${vars.suggester}/dev -c ./scripts/custom_functions.py"
-      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy -c ./scripts/custom_functions.py"
+      # - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.spancat_model} data/${vars.dataset}_${vars.dev}.spacy -c ./scripts/custom_functions.py"
     deps:
       - "${vars.spancat_model}"
       - "data/${vars.dataset}_${vars.dev}.spacy"
@@ -396,23 +394,6 @@ commands:
       - metrics/TEST_spancat_${vars.dataset}_${vars.config}_${vars.suggester}_Test.json
 
 
-  - name: "evaluate_custom_spancat"
-    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
-    script:
-      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/train"
-      - "mkdir -p displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/dev"
-      # - "python -m spacy evaluate ${vars.custom_spancat_model} data/${vars.dataset}_${vars.train}.spacy --output metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/train/ -c ./scripts/custom_functions.py"
-      - "python scripts/eval/evaluate.py ${vars.custom_spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py -dp displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/"
-      # - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/${vars.dataset}_${vars.train}.spacy"
-      # - "python -m spacy evaluate ${vars.custom_spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -dp displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/dev/ -c ./scripts/custom_functions.py"
-      - "python scripts/eval/evaluate.py ${vars.custom_spancat_model} data/${vars.dataset}_${vars.dev}.spacy --output metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json --gpu-id ${vars.gpu_id} -c ./scripts/custom_functions.py -dp displacy/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}/"
-      - "python scripts/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/${vars.dataset}_${vars.dev}.spacy -c ./scripts/custom_functions.py"
-    deps:
-      - "${vars.custom_spancat_model}"
-      - "data/${vars.dataset}_${vars.dev}.spacy"
-    outputs:
-      - metrics/spancat_${vars.dataset}_${vars.custom_config}_${vars.suggester}.json
-
   - name: "evaluate_spancat_last"
     help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
     script:
@@ -430,19 +411,19 @@ commands:
     outputs:
       - metrics/spancat_${vars.dataset}_${vars.config}_${vars.suggester}.json
 
-  - name: "test_suggester"
-    help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
-    script:
-      - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.train}.spacy -c ./scripts/custom_functions.py"
-      - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.dev}.spacy -c ./scripts/custom_functions.py"
-      - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.test}.spacy -c ./scripts/custom_functions.py"
-    deps:
-      - "${vars.custom_spancat_model}"
-      - "data/engagement_test_${vars.train}.spacy"
-      - "data/engagement_test_${vars.dev}.spacy"
-      - "data/engagement_test_${vars.test}.spacy"
-    outputs:
-      - metrics/spancat_engagement_test_${vars.custom_config}_${vars.suggester}.json
+  # - name: "test_suggester"
+  #   help: "Evaluate a trained spancat model  on the `dataset` defined in `project.yml`"
+  #   script:
+  #     - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.train}.spacy -c ./scripts/custom_functions.py"
+  #     - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.dev}.spacy -c ./scripts/custom_functions.py"
+  #     - "python scripts/eval/suggester_evaluation.py ${vars.spans_key} ${vars.custom_spancat_model} data/engagement_test_${vars.test}.spacy -c ./scripts/custom_functions.py"
+  #   deps:
+  #     - "${vars.custom_spancat_model}"
+  #     - "data/engagement_test_${vars.train}.spacy"
+  #     - "data/engagement_test_${vars.dev}.spacy"
+  #     - "data/engagement_test_${vars.test}.spacy"
+  #   outputs:
+  #     - metrics/spancat_engagement_test_${vars.custom_config}_${vars.suggester}.json
 
 
   - name: package

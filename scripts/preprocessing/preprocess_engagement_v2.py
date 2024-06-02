@@ -223,15 +223,20 @@ def parse_engagement_v3(data: str,
         # This was working before v3.5
         # spans = [ent for doc in docs for ent in doc.ents] # before v3.5
 
+
         # after spacy v3.5
         spans = []
-        for span in [ent for doc in docs for ent in doc.ents]:
-            spans.append(Span(doc, span.start, span.end, span.label_))
+        # for span in [ent for doc in docs for ent in doc.ents]:
+        #     spans.append(Span(doc, span.start, span.end, span.label_))
+        # group = SpanGroup(doc, name=span_key, spans=spans)
+
+        group = []
+        for span in spans:
+            group.append(Span(doc, span.start, span.end, span.label_))
 
         # print(spans)
         # print([span.label_ for span in spans])
         
-        group = SpanGroup(doc, name=span_key, spans=spans)
         doc.spans[span_key] = group
         docs_with_spans.append(doc)
 

@@ -1,12 +1,12 @@
 preprocess_engagementv3:
-  cmd: python -m weasel run preprocess_engagementv3
+  cmd: python -m spacy run preprocess_engagementv3
   script:
-    - python scripts/preprocessing/preprocess_engagement_v2.py assets/EDT_three_20230124_oversampled/train.iob  data/engagement_spl_train.spacy
+    - python scripts/preprocessing/preprocess_engagement_v2.py assets/EDT_three_20230124_oversampled/train.iob  data/engagement_train.spacy
       sc
     - python scripts/preprocessing/preprocess_engagement_v2.py assets/EDT_three_20230124_oversampled/dev.iob
-      data/engagement_spl_dev.spacy sc
+      data/engagement_dev.spacy sc
     - python scripts/preprocessing/preprocess_engagement_v2.py assets/EDT_three_20230124_oversampled/test.iob
-      data/engagement_spl_test.spacy sc
+      data/engagement_test.spacy sc
   deps:
     - path: assets/EDT_three_20230124_oversampled/train.iob
       md5: 59cf5b3cbe445de1753e2020bc5f675c
@@ -15,33 +15,11 @@ preprocess_engagementv3:
     - path: assets/EDT_three_20230124_oversampled/test.iob
       md5: 242b303f6090ac0c9187adc66b547e3c
   outs:
-    - path: data/engagement_spl_train.spacy
-      md5: ea33df518e13cfd6bfd6f7b331867d27
-    - path: data/engagement_spl_dev.spacy
-      md5: 107af3db579e3b0dd767c5236217fd2d
-    - path: data/engagement_spl_test.spacy
-      md5: 83f9a641bb6b8c02f9cf2852b4aa97fd
-train_spancat:
-  cmd: python -m weasel run train_spancat
-  script:
-    - python -m spacy train configs/subtree/lg.cfg --output training/spancat/engagement_spl/lg_subtree/
-      --paths.train data/engagement_spl_train.spacy --paths.dev data/engagement_spl_dev.spacy
-      --gpu-id 0 --vars.spans_key sc -c ./scripts/custom_functions.py
-  deps:
-    - path: configs/subtree/lg.cfg
-      md5: f7d9199cc6fc823acbafbc088f6931e5
-    - path: data/engagement_spl_train.spacy
-      md5: ea33df518e13cfd6bfd6f7b331867d27
-    - path: data/engagement_spl_dev.spacy
-      md5: 107af3db579e3b0dd767c5236217fd2d
-  outs:
-    - path: training/spancat/engagement_spl/lg_subtree/model-best
-      md5: 62e4ff58b09db0d9e1d4bab03cd6e5fc
-install:
-  cmd: python -m spacy run install
-  script:
-    - pip install -r requirements.txt
-  deps: []
-  outs: []
-  spacy_version: 3.4.4
-  spacy_git_version: Unknown
+    - path: data/engagement_train.spacy
+      md5: 2a43d074bdf08a5d9884f15d22e2c372
+    - path: data/engagement_dev.spacy
+      md5: 9fef961f93fc2087d91de3473a48ecc3
+    - path: data/engagement_test.spacy
+      md5: 1af86217d0ddc060f5a030d637964fd0
+  spacy_version: 3.6.0
+  spacy_git_version: 6fc153a26

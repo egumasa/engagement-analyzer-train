@@ -183,8 +183,12 @@ def cleanup_justify(doc, span_sc: dict):
 
 
 def dataset2tags(dev_dataset_sub, nlp, spans_key: str = "sc", pr=False):
+
     gold_doc = dev_dataset_sub.reference
-    pred_doc = nlp(dev_dataset_sub.text)
+    print(gold_doc)
+
+    pred_doc = nlp(gold_doc.text) #deprecated on 2024.06.03
+    print(pred_doc)
 
     cleanup_justify(pred_doc, pred_doc.spans['sc'])
     # delete_overlapping_span(pred_doc.spans['sc'])
@@ -195,12 +199,12 @@ def dataset2tags(dev_dataset_sub, nlp, spans_key: str = "sc", pr=False):
     pred_spans = set()
 
     for span in gold_doc.spans[spans_key]:
-        gold_span = (span.label_, span.start, span.end - 1)
+        gold_span = (span.label_, span.start, span.end) # deleted span.end -1
         gold_spans.add(gold_span)
         if span.label_ not in category: category.add(span.label_)
 
     for span in pred_doc.spans[spans_key]:
-        pred_span = (span.label_, span.start, span.end - 1)
+        pred_span = (span.label_, span.start, span.end) # deleted span.end -1
         pred_spans.add(pred_span)
         if span.label_ not in category: category.add(span.label_)
 
@@ -224,6 +228,8 @@ def dataset2tags(dev_dataset_sub, nlp, spans_key: str = "sc", pr=False):
         for gold, pred in zip(y_gold, y_pred):
             print(gold, pred, sep='\t')
     return (y_gold, y_pred, category)
+
+
 
 
 def evaluate_spancat(model: str,
@@ -258,10 +264,9 @@ def evaluate_spancat(model: str,
     else:
         name = model.split("/")[-1]
 
-    corpus = Corpus(data_path, gold_preproc=False)
+    corpus = Corpus(data_path, gold_preproc=gold_preproc)
     # nlp = util.load_model(model)
     nlp = spacy.load(model)
-    # nlp = spacy.load("en_engagement_spl_RoBERTa_acad_db")
     dev_dataset = list(corpus(nlp))
 
     category = set()
@@ -269,7 +274,9 @@ def evaluate_spancat(model: str,
     pred_tags = []
 
     for data in dev_dataset:
+
         gold, pred, categ = dataset2tags(data, nlp, spans_key=spans_key)
+
         assert len(gold) == len(pred)
         gold_tags.extend(gold)
         pred_tags.extend(pred)
@@ -330,38 +337,38 @@ def evaluate_spancat(model: str,
     # df.to_csv("test_df_columns.csv")
     df.transpose().to_csv(f"{output_path}_{name}_index.csv")
 
-    if displacy_path:
-        factory_names = [
-            nlp.get_pipe_meta(pipe).factory for pipe in nlp.pipe_names
-        ]
-        docs = list(
-            nlp.pipe(ex.reference.text for ex in dev_dataset[:displacy_limit]))
-        if parser:
-            render_deps = "parser" in factory_names
-        if ner:
-            render_ents = "ner" in factory_names
-        render_spans = "spancat" in factory_names
-        if parser and ner:
-            render_parses(
-                docs,
-                displacy_path,
-                model_name=model,
-                limit=displacy_limit,
-                deps=render_deps,
-                ents=render_ents,
-                spans=render_spans,
-            )
-        else:
-            render_parses(
-                docs,
-                displacy_path,
-                model_name=model,
-                limit=displacy_limit,
-                # deps=render_deps,
-                # ents=render_ents,
-                spans=render_spans,
-            )
-        msg.good(f"Generated {displacy_limit} parses as HTML", displacy_path)
+    # if displacy_path:
+    #     factory_names = [
+    #         nlp.get_pipe_meta(pipe).factory for pipe in nlp.pipe_names
+    #     ]
+    #     docs = list(
+    #         nlp.pipe(ex.reference.text for ex in dev_dataset[:displacy_limit]))
+    #     if parser:
+    #         render_deps = "parser" in factory_names
+    #     if ner:
+    #         render_ents = "ner" in factory_names
+    #     render_spans = "spancat" in factory_names
+    #     if parser and ner:
+    #         render_parses(
+    #             docs,
+    #             displacy_path,
+    #             model_name=model,
+    #             limit=displacy_limit,
+    #             deps=render_deps,
+    #             ents=render_ents,
+    #             spans=render_spans,
+    #         )
+    #     else:
+    #         render_parses(
+    #             docs,
+    #             displacy_path,
+    #             model_name=model,
+    #             limit=displacy_limit,
+    #             # deps=render_deps,
+    #             # ents=render_ents,
+    #             spans=render_spans,
+    #         )
+    #     msg.good(f"Generated {displacy_limit} parses as HTML", displacy_path)
 
     if output_path is not None:
         srsly.write_json(output_path, data)

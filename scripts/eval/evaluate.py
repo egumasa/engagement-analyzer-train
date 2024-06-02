@@ -79,16 +79,16 @@ def evaluate_cli(
         displacy_limit=displacy_limit,
         silent=False,
     )
-    evaluate_spancat(
-        model,
-        data_path,
-        output=output,
-        use_gpu=use_gpu,
-        gold_preproc=gold_preproc,
-        displacy_path=displacy_path,
-        displacy_limit=displacy_limit,
-        silent=False,
-    )
+    # evaluate_spancat(
+    #     model,
+    #     data_path,
+    #     output=output,
+    #     use_gpu=use_gpu,
+    #     gold_preproc=gold_preproc,
+    #     displacy_path=displacy_path,
+    #     displacy_limit=displacy_limit,
+    #     silent=False,
+    # )
 
 
 def evaluate(
@@ -102,7 +102,8 @@ def evaluate(
     silent: bool = True,
     spans_key: str = "sc",
     parser = False,
-    ner = False
+    ner = False,
+    per_component: bool = False
 ) -> Dict[str, Any]:
     msg = Printer(no_print=silent, pretty=not silent)
     fix_random_seed()
@@ -123,7 +124,7 @@ def evaluate(
     nlp = spacy.load(model)
     dev_dataset = list(corpus(nlp))  # https://spacy.io/api/corpus#call
 
-    scores = nlp.evaluate(dev_dataset)
+    scores = nlp.evaluate(dev_dataset) #, per_component=per_component from v3.6
     metrics = {
         "TOK": "token_acc",
         "TAG": "tag_acc",
@@ -165,39 +166,63 @@ def evaluate(
                                   data,
                                   spans_key=spans_key,
                                   silent=silent)
-
+    
     if displacy_path:
-        factory_names = [
-            nlp.get_pipe_meta(pipe).factory for pipe in nlp.pipe_names
-        ]
-        docs = list(
-            nlp.pipe(ex.reference.text for ex in dev_dataset[:displacy_limit]))
+
+        factory_names = [nlp.get_pipe_meta(pipe).factory for pipe in nlp.pipe_names]
+        docs = list(nlp.pipe(ex.reference.text for ex in dev_dataset[:displacy_limit]))
         if parser:
             render_deps = "parser" in factory_names
         if ner:
             render_ents = "ner" in factory_names
+        # render_deps = "parser" in factory_names
+        # render_ents = "ner" in factory_names
         render_spans = "spancat" in factory_names
-        if parser and ner:
-            render_parses(
-                docs,
-                displacy_path,
-                model_name=model,
-                limit=displacy_limit,
-                deps=render_deps,
-                ents=render_ents,
-                spans=render_spans,
-            )
-        else:
-            render_parses(
-                docs,
-                displacy_path,
-                model_name=model,
-                limit=displacy_limit,
-                # deps=render_deps,
-                # ents=render_ents,
-                spans=render_spans,
-            )
+
+        render_parses(
+            docs,
+            displacy_path,
+            model_name=model,
+            limit=displacy_limit,
+            deps=render_deps,
+            ents=render_ents,
+            spans=render_spans,
+        )
         msg.good(f"Generated {displacy_limit} parses as HTML", displacy_path)
+
+    # The following code no longer works for SpaCy 3.6
+    # if displacy_path:
+    #     factory_names = [
+    #         nlp.get_pipe_meta(pipe).factory for pipe in nlp.pipe_names
+    #     ]
+    #     docs = list(
+    #         nlp.pipe(ex.reference.text for ex in dev_dataset[:displacy_limit]))
+    #     if parser:
+    #         render_deps = "parser" in factory_names
+    #     if ner:
+    #         render_ents = "ner" in factory_names
+    #     render_spans = "spancat" in factory_names
+    #     if parser and ner:
+    #         render_parses(
+    #             docs,
+    #             displacy_path,
+    #             model_name=model,
+    #             limit=displacy_limit,
+    #             deps=render_deps,
+    #             ents=render_ents,
+    #             spans=render_spans,
+    #         )
+    #     else:
+    #         render_parses(
+    #             docs,
+    #             displacy_path,
+    #             model_name=model,
+    #             limit=displacy_limit,
+    #             # deps=render_deps,
+    #             # ents=render_ents,
+    #             spans=render_spans,
+    #         )
+    #     msg.good(f"Generated {displacy_limit} parses as HTML", displacy_path)
 
     if output_path is not None:
         srsly.write_json(output_path, data)
