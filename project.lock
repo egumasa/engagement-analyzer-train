@@ -26,37 +26,39 @@ preprocess_engagementv3:
 train_spancat:
   cmd: python -m spacy run train_spancat
   script:
-    - python -m spacy train configs/subtree/lg.cfg --output training/spancat/engagement/lg_subtree/
+    - python -m spacy train configs/subtree/minilm.cfg --output training/spancat/engagement/minilm_subtree/
       --paths.train data/engagement_train.spacy --paths.dev data/engagement_dev.spacy
-      --gpu-id 0 --vars.spans_key sc -c ./scripts/custom_functions.py
+      --gpu-id -1 --vars.spans_key sc -c ./scripts/custom_functions.py
   deps:
-    - path: configs/subtree/lg.cfg
-      md5: f7d9199cc6fc823acbafbc088f6931e5
+    - path: configs/subtree/minilm.cfg
+      md5: 14042b652c5c8c9e824c86effc7f288e
     - path: data/engagement_train.spacy
       md5: ea33df518e13cfd6bfd6f7b331867d27
     - path: data/engagement_dev.spacy
       md5: 107af3db579e3b0dd767c5236217fd2d
   outs:
-    - path: training/spancat/engagement/lg_subtree/model-best
-      md5: fca9352a4d28568bd39516dc59a1f252
+    - path: training/spancat/engagement/minilm_subtree/model-best
+      md5: 7beaf2dc151e563ab6c8c4bd9e97fa2e
   spacy_version: 3.6.0
   spacy_git_version: 6fc153a26
 evaluate_spancat:
   cmd: python -m spacy run evaluate_spancat
   script:
-    - mkdir -p displacy/spancat_engagement_lg_subtree/train
-    - mkdir -p displacy/spancat_engagement_lg_subtree/dev
-    - python -m spacy evaluate training/spancat/engagement/lg_subtree/model-best data/engagement_train.spacy
-      --output metrics/spancat_engagement_lg_subtree.json --gpu-id 0  -c ./scripts/custom_functions.py
-    - python -m spacy evaluate training/spancat/engagement/lg_subtree/model-best data/engagement_dev.spacy
-      --output metrics/spancat_engagement_lg_subtree.json --gpu-id 0  -c ./scripts/custom_functions.py
+    - mkdir -p displacy/spancat_engagement_minilm_subtree/train
+    - mkdir -p displacy/spancat_engagement_minilm_subtree/dev
+    - python -m spacy evaluate training/spancat/engagement/minilm_subtree/model-best
+      data/engagement_train.spacy --output metrics/spancat_engagement_minilm_subtree.json
+      --gpu-id -1  -c ./scripts/custom_functions.py
+    - python -m spacy evaluate training/spancat/engagement/minilm_subtree/model-best
+      data/engagement_dev.spacy --output metrics/spancat_engagement_minilm_subtree.json
+      --gpu-id -1  -c ./scripts/custom_functions.py
   deps:
-    - path: training/spancat/engagement/lg_subtree/model-best
-      md5: fca9352a4d28568bd39516dc59a1f252
+    - path: training/spancat/engagement/minilm_subtree/model-best
+      md5: 7beaf2dc151e563ab6c8c4bd9e97fa2e
     - path: data/engagement_dev.spacy
       md5: 107af3db579e3b0dd767c5236217fd2d
   outs:
-    - path: metrics/spancat_engagement_lg_subtree.json
-      md5: 5207f698d668f7c00310fd197fec40c9
+    - path: metrics/spancat_engagement_minilm_subtree.json
+      md5: 62b323ce21aec3734510e57b7e8469ea
   spacy_version: 3.6.0
   spacy_git_version: 6fc153a26
