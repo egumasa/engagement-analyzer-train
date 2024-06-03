@@ -1,5 +1,6 @@
 pandas
-spacy==3.7.4
+numpy
+spacy==3.6.0
 spacy-experimental==0.6.4
 matplotlib
 scikit-learn

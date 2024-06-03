@@ -216,12 +216,6 @@ def parse_engagement_v3(data: str,
 
     for docs in zip(*new_docs):
         # print(type(docs))
-        # A bug fixed based on https://github.com/explosion/projects/blob/v3/experimental/ner_spancat_compare/scripts/convert.py
-
-        # This was working before v3.5
-        # spans = [ent for doc in docs for ent in doc.ents] # before v3.5
-
-        # after spacy v3.5
         spans = [ent for doc in docs for ent in doc.ents]
         # print(spans)
         # print([span.label_ for span in spans])
